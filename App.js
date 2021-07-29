@@ -1,42 +1,73 @@
-import React, { useState } from 'react';
+import React, { useState , useEffect} from 'react';
 import { StyleSheet, Alert, View, FlatList ,Keyboard,TouchableWithoutFeedback} from 'react-native';
 import AddTodo from './Components/addTodo';
 import Header from './Components/header';
 import TodoItem from './Components/todoItem';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 export default function App() {
-  const [todos, setTodos] = useState([
-    { text: 'buy coffee', key: '1' },
-    { text: 'create an app', key: '2' },
-    { text: 'play on the switch', key: '3' },
-    { text: 'finish the app', key: '4' }
-  ]);
+  const [todos, setTodos] = useState([]);
+//////////////////////////////////////////////
+  useEffect(()=>{
+    getData();
+  },[])
+//////////////////////////////////////////////
+  const storeData = async (value) => {
+    try {
+      const jsonValue = JSON.stringify(value)
+      await AsyncStorage.setItem('@todos', jsonValue)
+      console.log("stored successfuly");
+    } catch (e) {
+      console.log("========================================");
+    }
+  }
 
-  const pressHandler = (key) => {
-    setTodos(prevTodos => {
-      return prevTodos.filter(todo => todo.key != key);
-    });
+  const getData = async () => {
+    try {
+      const jsonValue = await AsyncStorage.getItem('@todos')
+
+      if(jsonValue != null){
+        const parsedData = JSON.parse(jsonValue);
+        setTodos(parsedData);
+      }
+
+    } catch(e) {
+      console.log("fetch problem");
+    }
+  }
+//////////////////////////////////////////////
+  const deleteHandler = async (key) => {
+    var newTodos;
+    if(todos !== []){
+      await setTodos(prevTodos => {
+        newTodos = prevTodos.filter(todo => todo.key != key);
+        return newTodos;
+      });
+      await storeData(newTodos);
+    }
   };
 
-  const submitHandler = (text, setText) => {
-      
+  const submitHandler = async (text, setText) => {
       if (text === ''){
         Alert.alert('OOPS', "Todo can't be empty", [
           {text: 'Understood', onPress: () => console.log('alert closed') }
         ]);
       }else {
+        var newTodos;
         setText('');
         setTodos(prevTodos => {
-          return [
+          newTodos =  [
             { text, key: Math.random().toString() },
             ...prevTodos
           ];
+          return newTodos;
         })
+        await storeData(newTodos);
         Keyboard.dismiss();
       }
     };
-
+//////////////////////////////////////////////
   return (
     <TouchableWithoutFeedback
       onPress = {()=>{
@@ -51,14 +82,13 @@ export default function App() {
             <FlatList
               data={todos}
               renderItem={({ item }) => (
-                <TodoItem item={item} pressHandler={pressHandler} />
+                <TodoItem item={item} pressHandler={deleteHandler} />
               )}
             />
           </View>
         </View>
       </View>
     </TouchableWithoutFeedback>
-
   );
 }
 
@@ -68,10 +98,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   content: {
+    flex : 1,
     padding: 40,
     paddingTop: 20,
   },
   list: {
-    
+    flex : 1,
   },
 });
